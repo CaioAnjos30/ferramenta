@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Planilha — Produtos & Categorias</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --surface: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #555;
+    --muted: #8a8580;
+    --line: #d9d4cc;
+    --accent: #c4471c;
+    --accent-soft: #f0d5c8;
+    --ok: #2d7d3f;
+    --warn: #b8860b;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  /* Importação local de fontes via system stack alternativa */
+  body { font-family: 'IBM Plex Sans', -apple-system, system-ui, sans-serif; }
+  h1, h2, h3, .display { font-family: 'IBM Plex Serif', Georgia, serif; }
+  
+  header {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 28px 40px;
+    border-bottom: 3px solid var(--accent);
+  }
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #b5b0a8;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  header .updated {
+    text-align: right;
+    font-family: 'IBM Plex Sans', sans-serif;
+    flex-shrink: 0;
+  }
+  header .updated .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8a857e;
+  }
+  header .updated .value {
+    margin-top: 3px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--bg);
+    font-variant-numeric: tabular-nums;
+  }
+  header .updated .value.empty {
+    font-weight: 400;
+    color: #8a857e;
+  }
+  
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 40px 80px;
+  }
+  
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  
+  .panel-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .panel-header .step {
+    background: var(--ink);
+    color: var(--bg);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    margin-right: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .panel-header .left { display: flex; align-items: center; }
+  .panel-header .hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  
+  .panel-body { padding: 22px 24px; }
+  
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  
+  input[type="text"], select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  input.code {
+    font-family: 'IBM Plex Mono', 'Menlo', monospace;
+    font-size: 13px;
+  }
+  
+  .multiselect {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    min-height: 80px;
+    padding: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-content: flex-start;
+  }
+  .chip {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 4px 10px 4px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chip button {
+    background: none;
+    border: none;
+    color: var(--bg);
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.7;
+  }
+  .chip button:hover { opacity: 1; }
+  .chip.canal { background: var(--accent); }
+  
+  .add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .add-row select, .add-row input { flex: 1; }
+  
+  button.btn {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    padding: 9px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s;
+  }
+  button.btn:hover { background: #333; }
+  button.btn.accent { background: var(--accent); }
+  button.btn.accent:hover { background: #a83a17; }
+  button.btn.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  button.btn.ghost:hover { background: #faf8f4; }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  
+  .codigo-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr auto;
+    gap: 10px;
+    align-items: end;
+    padding: 12px;
+    background: #faf8f4;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .codigo-row .resolved {
+    font-size: 12px;
+    color: var(--ink-soft);
+    padding: 4px 0;
+    line-height: 1.4;
+    min-height: 36px;
+  }
+  .codigo-row .resolved .tag {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: #7a2d12;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .codigo-row .resolved.empty { color: var(--muted); font-style: italic; }
+  .codigo-row .resolved.error { color: var(--accent); }
+  .codigo-row .resolved strong { color: var(--ink); font-weight: 600; }
+  .codigo-row .resolved .sub-name { display: block; margin-top: 2px; font-size: 11px; color: var(--ink-soft); }
+  .codigo-row button.remove {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .codigo-row button.remove:hover { background: #fff; color: var(--accent); border-color: var(--accent); }
+  
+  .search-wrap { position: relative; }
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 10;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    display: none;
+  }
+  .search-results.open { display: block; }
+  .search-results .item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f0eb;
+    font-size: 13px;
+  }
+  .search-results .item:last-child { border-bottom: none; }
+  .search-results .item:hover, .search-results .item.active { background: var(--accent-soft); }
+  .search-results .item .code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: 8px;
+  }
+  .search-results .item .tag {
+    background: #ede8e0;
+    color: var(--ink-soft);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 6px;
+  }
+  
+  .tip {
+    background: #fef9ed;
+    border-left: 3px solid var(--warn);
+    padding: 10px 14px;
+    border-radius: 0 4px 4px 0;
+    font-size: 12px;
+    color: #5c4a1a;
+    margin-bottom: 16px;
+  }
+  .tip strong { color: var(--warn); }
+  
+  .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .preview-table th {
+    background: var(--ink);
+    color: var(--bg);
+    text-align: left;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .preview-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .preview-table tr:hover td { background: #faf8f4; }
+  .preview-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--muted);
+    font-style: italic;
+  }
+  
+  .summary {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .summary .stat {
+    background: #faf8f4;
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    border-radius: 4px;
+    flex: 1;
+  }
+  .summary .stat .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .summary .stat .value {
+    font-size: 20px;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink);
+  }
+  .summary .stat.warn .value { color: var(--accent); }
+  
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 720px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    main { padding: 20px; }
+    header { padding: 20px; }
+  }
+  
+  .footer-note {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 40px;
+  }
+
+  /* Dropzone da base */
+  #dropzone {
+    display: block;
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    background: #fbfaf7;
+    transition: border-color .15s, background .15s;
+  }
+  #dropzone:hover { border-color: var(--accent); background: #fdf6f2; }
+  #dropzone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  #dropzone .dz-icon { font-size: 26px; color: var(--accent); line-height: 1; }
+  #dropzone .dz-main { font-weight: 600; margin-top: 8px; color: var(--ink); }
+  #dropzone .dz-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Gerador de Planilha</h1>
+    <div class="sub">Combina produtos, canais e códigos em uma planilha pronta para download</div>
+  </div>
+  <div class="updated">
+    <div class="label">Última atualização do arquivo</div>
+    <div class="value empty" id="last-updated">Nenhum arquivo carregado</div>
+  </div>
+</header>
+
+<main>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="left">
+        <span class="step" style="background:var(--accent);">B</span>
+        <h2>Base de dados (Estrutura Mercadológica)</h2>
+      </div>
+      <span class="hint" id="base-hint">nenhuma base carregada</span>
+    </div>
+    <div class="panel-body">
+      <div class="tip" style="margin-bottom:14px;">
+        Arraste o arquivo da base aqui ou clique para selecionar. Aceita
+        <strong>.csv</strong> ou <strong>.xlsx</strong> com as colunas
+        <code style="font-family:'IBM Plex Mono',monospace">Est Mer 6 (Categoria)</code>,
+        <code style="font-family:'IBM Plex Mono',monospace">Est Mer 7 (Subcategoria)</code> e
+        <code style="font-family:'IBM Plex Mono',monospace">Est Mer Codigo</code>.
+      </div>
+      <label id="dropzone" for="base-file">
+        <div class="dz-icon">⬆</div>
+        <div class="dz-main">Arraste o arquivo aqui</div>
+        <div class="dz-sub">ou clique para escolher um arquivo .csv / .xlsx</div>
+        <input type="file" id="base-file" accept=".csv,.xlsx,.xls" style="display:none;">
+      </label>
+      <div id="base-status" style="font-size:13px; color:var(--ink-soft); margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="left">
+        <span class="step">1</span>
+        <h2>Produtos</h2>
+      </div>
+      <span class="hint" id="prod-count">0 selecionados</span>
+    </div>
+    <div class="panel-body">
+      <div class="multiselect" id="prod-chips"></div>
+      <div class="add-row">
+        <div class="search-wrap" style="flex:1; position:relative;">
+          <input type="text" id="prod-search" placeholder="Digite para buscar um produto (ex: SCANNSHARE)..." autocomplete="off">
+          <div class="search-results" id="prod-results"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="left">
+        <span class="step">2</span>
+        <h2>Canais</h2>
+      </div>
+      <span class="hint" id="canal-count">0 selecionados</span>
+    </div>
+    <div class="panel-body">
+      <div class="multiselect" id="canal-chips"></div>
+      <div class="add-row">
+        <select id="canal-select">
+          <option value="">Adicionar canal...</option>
+          <option value="Food">Food</option>
+          <option value="Farma">Farma</option>
+          <option value="Pet">Pet</option>
+          <option value="Perfumaria">Perfumaria</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="left">
+        <span class="step">3</span>
+        <h2>Categorias e Subcategorias</h2>
+      </div>
+      <span class="hint" id="cod-count">0 itens</span>
+    </div>
+    <div class="panel-body">
+      <div class="tip">
+        <strong>Dica:</strong> a busca <strong>por código</strong> tem maior precisão (ex: <code style="font-family:'IBM Plex Mono',monospace">.3.6.2.3.19.1</code>). A busca por nome é útil quando você não lembra o código, mas pode trazer mais opções para escolher.
+      </div>
+      <div id="codigo-list"></div>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button class="btn" id="add-by-code">+ Adicionar por código</button>
+        <button class="btn ghost" id="add-by-name">+ Adicionar por nome</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="left">
+        <span class="step">4</span>
+        <h2>Pré-visualização e Download</h2>
+      </div>
+      <span class="hint" id="row-count">0 linhas</span>
+    </div>
+    <div class="panel-body">
+      <div class="summary">
+        <div class="stat"><div class="label">Produtos</div><div class="value" id="s-prod">0</div></div>
+        <div class="stat"><div class="label">Canais</div><div class="value" id="s-canal">0</div></div>
+        <div class="stat"><div class="label">Códigos</div><div class="value" id="s-cod">0</div></div>
+        <div class="stat"><div class="label">Linhas geradas</div><div class="value" id="s-rows">0</div></div>
+      </div>
+      
+      <div style="border:1px solid var(--line); border-radius:4px; max-height:400px; overflow:auto;">
+        <table class="preview-table" id="preview">
+          <thead>
+            <tr>
+              <th>Produto</th><th>Canal</th><th>Categoria</th><th>codigo</th><th>Sub Categoria</th><th>codigo</th>
+            </tr>
+          </thead>
+          <tbody id="preview-body">
+            <tr><td colspan="6" class="preview-empty">Configure produtos, canais e códigos acima para ver o resultado</td></tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="actions">
+        <button class="btn ghost" id="btn-clear">Limpar tudo</button>
+        <button class="btn accent" id="btn-download" disabled>Baixar planilha (.xlsx)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Os dados de categorias estão embutidos nesta página · funciona offline após carregar
+  </div>
+
+</main>
+
+<script>
+let DADOS = {"produtos":["DATA PETZ","DISTRIBUIDORES","FEE LOJA IDEAL","FTP ECOMMERCE BASE LIBERADA","FTP ECOMMERCE BASE TOTAL","FTP ECOMMERCE BASE TOTAL ANUAL","FTP ECOMMERCE BASE TOTAL DIARIO","FTP ECOMMERCE BASE TOTAL MENSAL","FTP PRICING","FTP SCANN&OP","FTP SCANNSCALE SEASON","FTP SCANNSCALE SHARE","FTP SCANNSCALE SHOT","FTP SCANNSCALE VIEW","FTP SCANNSEASON","FTP SCANNSHARE MENSAL","FTP SCANNSHOPPER","FTP SCANNSHOT","FTP SCANNVIEW DIARIO","FTP SCANNVIEW HISTORICO","FTP SCANNVIEW MENSAL COM CONCORRENTE","FTP SCANNVIEW MENSAL SEM CONCORRENTE","FTP SCANNVIEW SEMANAL","GPA MONETIZAÇÃO SELLOUT","GPA MONETIZAÇÃO SHOPPER","GPA MONETIZAÇÃO STOCK","INGRESSO IN MOTION","LAB PACE","LOCALIZADOR DE LOJAS","MONITOR EXECULTIVO 2.0","NÃO ASSIGNADO","OTHER PRODUCTS","OUTROS","PAINEL PARTICIPAÇÃO DE MERCADO","PROJETO STORM","RECURSO DEDICADO","RECURSO DEDICADO JR","RECURSO DEDICADO PLENO","RECURSO DEDICADO SR","REDES","SCANN ECOMMERCE BASE LIBERADA","SCANN ECOMMERCE BASE TOTAL","SCANN ECOMMERCE IMPLEMENTACAO","SCANN STORE EXECUTION","SCANN&OP","SCANN&OP IMPLEMENTACAO","SCANNBINX","SCANNBINX IMPLEMENTACAO","SCANNCLUBE","SCANNCOMMODITIES","SCANNDAILY","SCANNDAILY IMPLEMENTACAO","SCANNGEOX","SCANNGEOX IMPLEMENTACAO","SCANNLITE","SCANNLITE IMPLEMENTACAO","SCANNMARKET","SCANNMARKET IMPLEMENTACAO","SCANNMETRICS","SCANNMETRICS IMPLEMENTACAO","SCANNOOS","SCANNOOS IMPLEMENTACAO","SCANNPRICE COMPLIANCE","SCANNPRICE COMPLIANCE IMPLEMENTACAO","SCANNPRICE IMPLEMENTACAO","SCANNPRICE SCENARIOS","SCANNPRICE SCENARIOS IMPLEMENTACAO","SCANNPRICE STRATEGY","SCANNPROFIT","SCANNPROMO BASE LIBERADA","SCANNPROMO BASE TOTAL","SCANNSALES","SCANNSALES IMPLEMENTACAO","SCANNSCALE IMPLEMENTACAO","SCANNSCALE SEASON","SCANNSCALE SEASON IMPLEMENTACAO","SCANNSCALE SHARE","SCANNSCALE SHARE IMPLEMENTACAO","SCANNSCALE SHOT","SCANNSCALE SHOT IMPLEMENTACAO","SCANNSCALE VIEW","SCANNSCALE VIEW IMPLEMENTACAO","SCANNSEASON","SCANNSEASON IMPLEMENTACAO","SCANNSHARE","SCANNSHARE IMPLEMENTACAO","SCANNSHOPPER","SCANNSHOPPER E-COMM","SCANNSHOPPER E-COMM IMPLEMENTACAO","SCANNSHOPPER IMPLEMENTACAO","SCANNSHOT","SCANNSHOT IMPLEMENTACAO","SCANNSMART FFILL","SCANNSMART FFILL IMPLEMENTACAO","SCANNTRENDS","SCANNVIEW","SCANNVIEW IMPLEMENTACAO","TARGET","VENDA CERTA"],"sub_index":{},"cat_index":{}};
+
+// Estado
+const state = {
+  produtos: [],
+  canais: [],
+  codigos: [] // [{tipo: 'codigo'|'nome', valor, resolvido: {...} | null}]
+};
+
+// === PRODUTOS ===
+const prodSearch = document.getElementById('prod-search');
+const prodResults = document.getElementById('prod-results');
+const prodChips = document.getElementById('prod-chips');
+const prodCount = document.getElementById('prod-count');
+
+function renderProdChips() {
+  prodChips.innerHTML = state.produtos.length === 0
+    ? '<span style="color:var(--muted); font-size:12px; padding:4px;">Nenhum produto selecionado</span>'
+    : '';
+  state.produtos.forEach((p, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${escapeHtml(p)} <button data-i="${i}" title="Remover">×</button>`;
+    chip.querySelector('button').onclick = () => { state.produtos.splice(i,1); renderProdChips(); updateAll(); };
+    prodChips.appendChild(chip);
+  });
+  prodCount.textContent = `${state.produtos.length} selecionado${state.produtos.length===1?'':'s'}`;
+}
+
+prodSearch.addEventListener('input', () => {
+  const q = prodSearch.value.trim().toLowerCase();
+  if (!q) { prodResults.classList.remove('open'); prodResults.innerHTML=''; return; }
+  const matches = DADOS.produtos.filter(p => p.toLowerCase().includes(q) && !state.produtos.includes(p)).slice(0, 12);
+  if (matches.length === 0) {
+    prodResults.innerHTML = '<div class="item" style="color:var(--muted); cursor:default;">Nenhum produto encontrado</div>';
+  } else {
+    prodResults.innerHTML = matches.map(m => `<div class="item" data-val="${escapeAttr(m)}">${highlight(m, q)}</div>`).join('');
+    prodResults.querySelectorAll('.item[data-val]').forEach(el => {
+      el.onclick = () => {
+        state.produtos.push(el.dataset.val);
+        prodSearch.value = '';
+        prodResults.classList.remove('open');
+        renderProdChips();
+        updateAll();
+      };
+    });
+  }
+  prodResults.classList.add('open');
+});
+prodSearch.addEventListener('blur', () => setTimeout(() => prodResults.classList.remove('open'), 150));
+prodSearch.addEventListener('focus', () => { if (prodSearch.value.trim()) prodSearch.dispatchEvent(new Event('input')); });
+
+// === CANAIS ===
+const canalSelect = document.getElementById('canal-select');
+const canalChips = document.getElementById('canal-chips');
+const canalCount = document.getElementById('canal-count');
+
+function renderCanalChips() {
+  canalChips.innerHTML = state.canais.length === 0
+    ? '<span style="color:var(--muted); font-size:12px; padding:4px;">Nenhum canal selecionado</span>'
+    : '';
+  state.canais.forEach((c, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip canal';
+    chip.innerHTML = `${escapeHtml(c)} <button data-i="${i}" title="Remover">×</button>`;
+    chip.querySelector('button').onclick = () => { state.canais.splice(i,1); renderCanalChips(); updateAll(); };
+    canalChips.appendChild(chip);
+  });
+  canalCount.textContent = `${state.canais.length} selecionado${state.canais.length===1?'':'s'}`;
+}
+
+canalSelect.addEventListener('change', () => {
+  const v = canalSelect.value;
+  if (v && !state.canais.includes(v)) {
+    state.canais.push(v);
+    renderCanalChips();
+    updateAll();
+  }
+  canalSelect.value = '';
+});
+
+// === CÓDIGOS ===
+const codigoList = document.getElementById('codigo-list');
+const codCount = document.getElementById('cod-count');
+
+function normalizeCode(s) {
+  s = (s||'').trim();
+  if (!s) return '';
+  if (!s.startsWith('.')) s = '.' + s;
+  return s;
+}
+
+function resolveCodigo(item) {
+  if (item.tipo === 'codigo') {
+    const c = normalizeCode(item.valor);
+    if (!c) return null;
+    // Tentar como subcategoria primeiro (mais específico)
+    if (DADOS.sub_index[c]) {
+      return { kind: 'sub', ...DADOS.sub_index[c] };
+    }
+    if (DADOS.cat_index[c]) {
+      return { kind: 'cat', ...DADOS.cat_index[c] };
+    }
+    return { kind: 'notfound' };
+  } else {
+    // por nome — já foi resolvido na seleção
+    return item.resolvido || null;
+  }
+}
+
+function renderCodigos() {
+  codigoList.innerHTML = '';
+  state.codigos.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'codigo-row';
+    
+    if (item.tipo === 'codigo') {
+      row.innerHTML = `
+        <div>
+          <label>Código</label>
+          <input type="text" class="code" placeholder=".3.6.2.3.19.1" value="${escapeAttr(item.valor)}">
+        </div>
+        <div>
+          <label>Resolvido</label>
+          <div class="resolved" data-resolved></div>
+        </div>
+        <button class="remove" title="Remover">×</button>
+      `;
+      const input = row.querySelector('input');
+      input.addEventListener('input', () => { item.valor = input.value; updateResolved(row, item); updateAll(); });
+      updateResolved(row, item);
+    } else {
+      // tipo 'nome'
+      row.innerHTML = `
+        <div class="search-wrap">
+          <label>Buscar por nome</label>
+          <input type="text" placeholder="Digite categoria ou subcategoria..." value="${escapeAttr(item.valor)}">
+          <div class="search-results"></div>
+        </div>
+        <div>
+          <label>Selecionado</label>
+          <div class="resolved" data-resolved></div>
+        </div>
+        <button class="remove" title="Remover">×</button>
+      `;
+      const input = row.querySelector('input');
+      const results = row.querySelector('.search-results');
+      
+      input.addEventListener('input', () => {
+        item.valor = input.value;
+        item.resolvido = null;
+        updateResolved(row, item);
+        const q = input.value.trim().toLowerCase();
+        if (!q || q.length < 2) { results.classList.remove('open'); return; }
+        
+        const matches = [];
+        // buscar em categorias
+        for (const [code, cat] of Object.entries(DADOS.cat_index)) {
+          if (cat.categoria.toLowerCase().includes(q)) {
+            matches.push({ kind: 'cat', ...cat, code });
+            if (matches.length >= 30) break;
+          }
+        }
+        // buscar em subcategorias
+        for (const [code, sub] of Object.entries(DADOS.sub_index)) {
+          if (sub.subcategoria.toLowerCase().includes(q)) {
+            matches.push({ kind: 'sub', ...sub, code });
+            if (matches.length >= 30) break;
+          }
+        }
+        
+        if (matches.length === 0) {
+          results.innerHTML = '<div class="item" style="color:var(--muted); cursor:default;">Nada encontrado</div>';
+        } else {
+          results.innerHTML = matches.slice(0, 20).map((m, idx) => {
+            const tag = m.kind === 'cat' ? 'CAT' : 'SUB';
+            const nome = m.kind === 'cat' ? m.categoria : `${m.subcategoria} <span style="color:var(--muted);">— ${m.categoria}</span>`;
+            const code = m.kind === 'cat' ? m.cod_cat : m.cod_sub;
+            return `<div class="item" data-idx="${idx}"><span class="tag">${tag}</span>${nome}<span class="code">${code}</span></div>`;
+          }).join('');
+          results.querySelectorAll('.item[data-idx]').forEach(el => {
+            el.onclick = () => {
+              const m = matches[parseInt(el.dataset.idx)];
+              item.resolvido = m;
+              item.valor = m.kind === 'cat' ? m.categoria : m.subcategoria;
+              input.value = item.valor;
+              results.classList.remove('open');
+              updateResolved(row, item);
+              updateAll();
+            };
+          });
+        }
+        results.classList.add('open');
+      });
+      input.addEventListener('blur', () => setTimeout(() => results.classList.remove('open'), 150));
+      updateResolved(row, item);
+    }
+    
+    row.querySelector('.remove').onclick = () => { state.codigos.splice(i,1); renderCodigos(); updateAll(); };
+    codigoList.appendChild(row);
+  });
+  
+  if (state.codigos.length === 0) {
+    codigoList.innerHTML = '<div style="color:var(--muted); font-size:13px; font-style:italic; padding:8px;">Clique em "+ Adicionar código ou nome" para começar</div>';
+  }
+  codCount.textContent = `${state.codigos.length} ite${state.codigos.length===1?'m':'ns'}`;
+}
+
+function updateResolved(row, item) {
+  const el = row.querySelector('[data-resolved]');
+  const r = resolveCodigo(item);
+  if (!item.valor || !item.valor.trim()) {
+    el.className = 'resolved empty';
+    el.textContent = '—';
+    return;
+  }
+  if (!r || r.kind === 'notfound') {
+    el.className = 'resolved error';
+    el.innerHTML = '⚠ Código não encontrado';
+    return;
+  }
+  el.className = 'resolved';
+  if (r.kind === 'cat') {
+    el.innerHTML = `<span class="tag">Categoria</span><strong>${escapeHtml(r.categoria)}</strong><span class="sub-name">Gera ${r.subcategorias.length} linha(s) — uma por subcategoria</span>`;
+  } else {
+    el.innerHTML = `<span class="tag">Subcategoria</span><strong>${escapeHtml(r.subcategoria)}</strong><span class="sub-name">↳ ${escapeHtml(r.categoria)}</span>`;
+  }
+}
+
+document.getElementById('add-by-code').onclick = () => {
+  state.codigos.push({ tipo: 'codigo', valor: '', resolvido: null });
+  renderCodigos();
+  updateAll();
+};
+document.getElementById('add-by-name').onclick = () => {
+  state.codigos.push({ tipo: 'nome', valor: '', resolvido: null });
+  renderCodigos();
+  updateAll();
+};
+
+// === GERAÇÃO DA TABELA ===
+function buildRows() {
+  const rows = [];
+  // expandir cada código em subcategorias
+  const expandedCodigos = [];
+  for (const item of state.codigos) {
+    const r = resolveCodigo(item);
+    if (!r || r.kind === 'notfound') continue;
+    if (r.kind === 'sub') {
+      expandedCodigos.push({
+        categoria: r.categoria,
+        cod_cat: r.cod_cat,
+        subcategoria: r.subcategoria,
+        cod_sub: r.cod_sub
+      });
+    } else {
+      // categoria — expande em todas as subcategorias
+      for (const sub of r.subcategorias) {
+        expandedCodigos.push({
+          categoria: r.categoria,
+          cod_cat: r.cod_cat,
+          subcategoria: sub.subcategoria,
+          cod_sub: sub.cod_sub
+        });
+      }
+    }
+  }
+  
+  for (const prod of state.produtos) {
+    for (const canal of state.canais) {
+      for (const c of expandedCodigos) {
+        rows.push([prod, canal, c.categoria, c.cod_cat, c.subcategoria, c.cod_sub]);
+      }
+    }
+  }
+  return rows;
+}
+
+function renderPreview() {
+  const rows = buildRows();
+  const body = document.getElementById('preview-body');
+  document.getElementById('s-prod').textContent = state.produtos.length;
+  document.getElementById('s-canal').textContent = state.canais.length;
+  document.getElementById('s-cod').textContent = state.codigos.filter(c => {
+    const r = resolveCodigo(c);
+    return r && r.kind !== 'notfound';
+  }).length;
+  document.getElementById('s-rows').textContent = rows.length;
+  document.getElementById('row-count').textContent = `${rows.length} linha${rows.length===1?'':'s'}`;
+  
+  document.getElementById('btn-download').disabled = rows.length === 0;
+  
+  if (rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" class="preview-empty">Configure produtos, canais e códigos acima para ver o resultado</td></tr>';
+    return;
+  }
+  
+  const preview = rows.slice(0, 100);
+  body.innerHTML = preview.map(r => `<tr>${r.map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+  if (rows.length > 100) {
+    body.innerHTML += `<tr><td colspan="6" style="text-align:center; color:var(--muted); font-style:italic; padding:12px;">... mais ${rows.length - 100} linha(s) — todas estarão no arquivo baixado</td></tr>`;
+  }
+}
+
+function updateAll() { renderPreview(); }
+
+// === DOWNLOAD ===
+document.getElementById('btn-download').onclick = () => {
+  const rows = buildRows();
+  if (rows.length === 0) return;
+  
+  const header = ['Produto', 'Canal', 'Categoria', 'codigo', 'Sub Categoria', 'codigo'];
+  const data = [header, ...rows];
+  
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  // Larguras das colunas
+  ws['!cols'] = [
+    { wch: 28 }, { wch: 12 }, { wch: 32 }, { wch: 16 }, { wch: 38 }, { wch: 18 }
+  ];
+  
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Resultado');
+  
+  const ts = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `planilha_produtos_${ts}.xlsx`);
+};
+
+document.getElementById('btn-clear').onclick = () => {
+  if (!confirm('Limpar todas as seleções?')) return;
+  state.produtos = [];
+  state.canais = [];
+  state.codigos = [];
+  renderProdChips(); renderCanalChips(); renderCodigos(); updateAll();
+};
+
+// === UTIL ===
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+function highlight(text, q) {
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return escapeHtml(text);
+  return escapeHtml(text.slice(0, idx)) + '<strong style="background:#fef0c8; padding:0 2px;">' + escapeHtml(text.slice(idx, idx+q.length)) + '</strong>' + escapeHtml(text.slice(idx+q.length));
+}
+
+
+// ===================================================================
+// CARREGAMENTO DE BASE EXTERNA (CSV / XLSX) — mesma estrutura da base
+// ===================================================================
+
+// Acha o índice de uma coluna pelo nome (tolerante a acento/caixa/variações)
+function acharCol(header, alvos) {
+  const norm = s => (s||'').toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]/g,'');
+  const H = header.map(norm);
+  for (const alvo of alvos) {
+    const a = norm(alvo);
+    let i = H.indexOf(a);
+    if (i !== -1) return i;
+    i = H.findIndex(h => h.includes(a));
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+// cod_cat = código pai (remove último segmento), exceto "Por Defecto" (= próprio código)
+function paiCodigo(code) {
+  const p = code.split('.');
+  p.pop();
+  return p.join('.');
+}
+
+// Reconstrói sub_index e cat_index a partir das linhas (mantém a lista de produtos)
+function montarIndices(linhas, idxCat, idxSub, idxCod) {
+  const sub_index = {};
+  const cat_index = {};
+  let usadas = 0;
+  for (const r of linhas) {
+    const cat = (r[idxCat] ?? '').toString().trim();
+    const sub = (r[idxSub] ?? '').toString().trim();
+    let cod = (r[idxCod] ?? '').toString().trim();
+    if (!cod) continue;
+    if (!cod.startsWith('.')) cod = '.' + cod;
+    const ehDefecto = sub.toLowerCase().indexOf('por defecto') === 0;
+    const cod_cat = ehDefecto ? cod : paiCodigo(cod);
+    sub_index[cod] = { categoria: cat, cod_cat, subcategoria: sub, cod_sub: cod };
+    if (!cat_index[cod_cat]) cat_index[cod_cat] = { categoria: cat, cod_cat, subcategorias: [] };
+    cat_index[cod_cat].subcategorias.push({ subcategoria: sub, cod_sub: cod });
+    usadas++;
+  }
+  return {
+    produtos: DADOS.produtos,           // produtos não vêm da base; preserva os atuais
+    sub_index, cat_index,
+    _stats: { linhas: usadas, categorias: Object.keys(cat_index).length, subcategorias: Object.keys(sub_index).length }
+  };
+}
+
+// Parser de CSV (lida com aspas e escolhe o melhor delimitador: tab, ; ou ,)
+function parseCSV(texto) {
+  texto = texto.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const fim = texto.indexOf('\n') === -1 ? texto.length : texto.indexOf('\n');
+  const primeira = texto.slice(0, fim);
+  const cont = d => (primeira.split(d).length - 1);
+  let delim = '\t';
+  if (cont(';') > cont(delim)) delim = ';';
+  if (cont(',') > cont(delim)) delim = ',';
+
+  const linhas = [];
+  let campo = '', linha = [], aspas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (aspas) {
+      if (c === '"') { if (texto[i+1] === '"') { campo += '"'; i++; } else aspas = false; }
+      else campo += c;
+    } else {
+      if (c === '"') aspas = true;
+      else if (c === delim) { linha.push(campo); campo = ''; }
+      else if (c === '\n') { linha.push(campo); linhas.push(linha); linha = []; campo = ''; }
+      else campo += c;
+    }
+  }
+  if (campo.length || linha.length) { linha.push(campo); linhas.push(linha); }
+  return linhas.filter(l => l.some(c => (c||'').trim() !== ''));
+}
+
+// Decodifica ArrayBuffer detectando UTF-16 LE/BE ou UTF-8
+function decodificar(buffer) {
+  const b = new Uint8Array(buffer);
+  if (b.length >= 2 && b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buffer);
+  if (b.length >= 2 && b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buffer);
+  return new TextDecoder('utf-8').decode(buffer);
+}
+
+const baseStatus = document.getElementById('base-status');
+const baseHint = document.getElementById('base-hint');
+
+function aplicarBase(matriz, origem) {
+  if (!matriz || matriz.length < 2) {
+    baseStatus.innerHTML = '⚠ Arquivo vazio ou sem linhas de dados.';
+    baseStatus.style.color = 'var(--accent)';
+    return;
+  }
+  const header = matriz[0];
+  const idxCat = acharCol(header, ['Est Mer 6 (Categoria)', 'Est Mer 6', 'Categoria']);
+  const idxSub = acharCol(header, ['Est Mer 7 (Subcategoria)', 'Est Mer 7', 'Subcategoria', 'Sub Categoria']);
+  const idxCod = acharCol(header, ['Est Mer Codigo', 'Est Mer Código', 'Codigo', 'Código']);
+
+  if (idxCat === -1 || idxSub === -1 || idxCod === -1) {
+    baseStatus.innerHTML = '⚠ Não encontrei as colunas esperadas. Cabeçalho lido: <em>' +
+      escapeHtml(header.join(' | ')) + '</em>';
+    baseStatus.style.color = 'var(--accent)';
+    return;
+  }
+
+  const dados = montarIndices(matriz.slice(1), idxCat, idxSub, idxCod);
+  if (dados._stats.subcategorias === 0) {
+    baseStatus.innerHTML = '⚠ Nenhum código válido encontrado nas linhas.';
+    baseStatus.style.color = 'var(--accent)';
+    return;
+  }
+
+  DADOS = dados;
+  renderCodigos();   // re-resolve seleções existentes
+  updateAll();
+
+  baseStatus.innerHTML = '✓ Base atualizada (' + escapeHtml(origem) + '): <strong>' +
+    dados._stats.categorias + '</strong> categorias e <strong>' +
+    dados._stats.subcategorias + '</strong> subcategorias.';
+  baseStatus.style.color = 'var(--ok)';
+  baseHint.textContent = 'base externa: ' + origem;
+}
+
+function atualizarDataArquivo(file) {
+  const el = document.getElementById('last-updated');
+  if (!el) return;
+  if (!file || !file.lastModified) {
+    el.textContent = 'Data indisponível';
+    el.classList.remove('empty');
+    return;
+  }
+  const d = new Date(file.lastModified);
+  const data = d.toLocaleDateString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+  const hora = d.toLocaleTimeString('pt-BR', {
+    hour: '2-digit', minute: '2-digit'
+  });
+  el.textContent = data + ' às ' + hora;
+  el.classList.remove('empty');
+}
+
+function processarArquivo(file) {
+  if (!file) return;
+  atualizarDataArquivo(file);
+  baseStatus.textContent = 'Lendo ' + file.name + '...';
+  baseStatus.style.color = 'var(--ink-soft)';
+  const nome = file.name.toLowerCase();
+  const reader = new FileReader();
+
+  if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const matriz = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+        aplicarBase(matriz, file.name);
+      } catch (err) {
+        baseStatus.innerHTML = '\u26a0 Erro ao ler XLSX: ' + escapeHtml(err.message);
+        baseStatus.style.color = 'var(--accent)';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload = (e) => {
+      try {
+        const texto = decodificar(e.target.result);
+        const matriz = parseCSV(texto);
+        aplicarBase(matriz, file.name);
+      } catch (err) {
+        baseStatus.innerHTML = '\u26a0 Erro ao ler CSV: ' + escapeHtml(err.message);
+        baseStatus.style.color = 'var(--accent)';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+const baseFile = document.getElementById('base-file');
+const dropzone = document.getElementById('dropzone');
+
+baseFile.addEventListener('change', (ev) => {
+  const file = ev.target.files && ev.target.files[0];
+  processarArquivo(file);
+  ev.target.value = ''; // permite recarregar o mesmo arquivo
+});
+
+// Arrastar e soltar
+['dragenter', 'dragover'].forEach(evt =>
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.add('dragover');
+  })
+);
+['dragleave', 'drop'].forEach(evt =>
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.remove('dragover');
+  })
+);
+dropzone.addEventListener('drop', (e) => {
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  processarArquivo(file);
+});
+
+// Evita que soltar fora da dropzone abra o arquivo no navegador
+['dragover', 'drop'].forEach(evt =>
+  window.addEventListener(evt, (e) => { e.preventDefault(); })
+);
+
+
+// Init
+renderProdChips();
+renderCanalChips();
+renderCodigos();
+updateAll();
+</script>
+
+</body>
+</html>
